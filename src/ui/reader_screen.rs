@@ -15,6 +15,7 @@ use super::{
     history::History, scroll_data::ScrollData, user_interface::TerminalSizeError, wrap_line,
     UserInterface,
 };
+use crate::model::PromptInput;
 
 pub struct ReaderScreen {
     screen: Box<dyn Write>,
@@ -195,20 +196,23 @@ impl UserInterface for ReaderScreen {
     }
 
     // This is fancy logic to make 'tdsr' less noisy
-    fn print_prompt_input(&mut self, input: &str, pos: usize) {
+    fn print_prompt_input(&mut self, input: &PromptInput) {
+        let PromptInput {
+            line, cursor_pos, ..
+        } = input;
         if let Some((existing, orig)) = self.prompt_input.clone() {
-            if input.starts_with(&existing) {
-                let input = input[orig..].to_owned();
-                self.print_prompt_input_suffix(&input, orig, pos);
-            } else if existing.starts_with(input) {
-                self.trim_prompt_input(pos);
+            if line.starts_with(&existing) {
+                let input = line[orig..].to_owned();
+                self.print_prompt_input_suffix(&input, orig, *cursor_pos);
+            } else if existing.starts_with(line) {
+                self.trim_prompt_input(*cursor_pos);
             } else {
-                self.print_prompt_input(input, pos);
+                self.print_prompt_input(line, *cursor_pos);
             }
         } else {
-            self.print_prompt_input(input, pos);
+            self.print_prompt_input(line, *cursor_pos);
         }
-        self.prompt_input = Some((input.to_string(), pos));
+        self.prompt_input = Some((line.to_string(), *cursor_pos));
     }
 
     fn print_send(&mut self, send: &Line) {

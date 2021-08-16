@@ -3,7 +3,7 @@ use std::{error, fmt, io::Write};
 #[cfg(test)]
 use mockall::automock;
 
-use crate::model::{Line, Regex};
+use crate::model::{Line, PromptInput, Regex};
 
 use anyhow::Result;
 
@@ -37,7 +37,7 @@ pub trait UserInterface {
     fn print_info(&mut self, output: &str);
     fn print_output(&mut self, line: &Line);
     fn print_prompt(&mut self, prompt: &Line);
-    fn print_prompt_input(&mut self, input: &str, pos: usize);
+    fn print_prompt_input(&mut self, input: &PromptInput);
     fn print_send(&mut self, send: &Line);
     fn reset(&mut self) -> Result<()>;
     fn reset_scroll(&mut self) -> Result<()>;

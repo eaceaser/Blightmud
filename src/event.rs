@@ -1,6 +1,6 @@
 use crate::{audio::SourceOptions, model::Regex};
 use crate::{
-    model::{Connection, Line},
+    model::{Connection, Line, PromptInput},
     net::{spawn_receive_thread, spawn_transmit_thread},
     session::Session,
     tts::TTSEvent,
@@ -31,7 +31,7 @@ pub enum Event {
     Output(Line),
     Error(String),
     Info(String),
-    UserInputBuffer(String, usize),
+    UserInputBuffer(PromptInput),
     Connect(Connection),
     Connected(u16),
     Disconnect(u16),
@@ -269,10 +269,10 @@ impl EventHandler {
                 screen.print_prompt(&prompt);
                 Ok(())
             }
-            Event::UserInputBuffer(input_buffer, pos) => {
+            Event::UserInputBuffer(input) => {
                 let mut prompt_input = self.session.prompt_input.lock().unwrap();
-                *prompt_input = input_buffer;
-                screen.print_prompt_input(&prompt_input, pos);
+                *prompt_input = input;
+                screen.print_prompt_input(&prompt_input);
                 Ok(())
             }
             Event::Error(msg) => {
@@ -474,7 +474,11 @@ mod event_test {
             .is_ok());
         assert!(handler
             .handle_output_events(
-                Event::UserInputBuffer(String::from("prompt"), 5),
+                Event::UserInputBuffer(PromptInput {
+                    line: "prompt".to_string(),
+                    cursor_pos: 5,
+                    selection: None
+                }),
                 &mut screen
             )
             .is_ok());

@@ -337,7 +337,7 @@ For more info: https://github.com/LiquidityC/Blightmud/issues/173"#;
             | Event::Prompt(_)
             | Event::Error(_)
             | Event::Info(_)
-            | Event::UserInputBuffer(_, _) => {
+            | Event::UserInputBuffer(_) => {
                 //tts_ctrl.handle_events(event.clone());
                 event_handler.handle_output_events(event, &mut screen)?;
             }
@@ -482,7 +482,7 @@ For more info: https://github.com/LiquidityC/Blightmud/issues/173"#;
                     script.set_dimensions((screen.width(), screen.height()));
                 }
                 let prompt_input = session.prompt_input.lock().unwrap();
-                screen.print_prompt_input(&prompt_input, prompt_input.len());
+                screen.print_prompt_input(&prompt_input);
             }
             Event::Quit(method) => {
                 if Settings::load().get(CONFIRM_QUIT)?

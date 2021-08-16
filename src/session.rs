@@ -18,6 +18,7 @@ use crate::{
     Event,
 };
 
+use crate::model::PromptInput;
 #[cfg(test)]
 use mockall::automock;
 
@@ -29,7 +30,7 @@ pub struct Session {
     pub timer_writer: Sender<TimerEvent>,
     pub telnet_parser: Arc<Mutex<Parser>>,
     pub output_buffer: Arc<Mutex<OutputBuffer>>,
-    pub prompt_input: Arc<Mutex<String>>,
+    pub prompt_input: Arc<Mutex<PromptInput>>,
     pub save_history: Arc<AtomicBool>,
     pub lua_script: Arc<Mutex<LuaScript>>,
     pub logger: Arc<Mutex<dyn LogWriter + Send>>,
@@ -205,7 +206,11 @@ impl SessionBuilder {
             output_buffer: Arc::new(Mutex::new(OutputBuffer::new(
                 &TelnetMode::UnterminatedPrompt,
             ))),
-            prompt_input: Arc::new(Mutex::new(String::new())),
+            prompt_input: Arc::new(Mutex::new(PromptInput {
+                line: String::new(),
+                cursor_pos: 0,
+                selection: None,
+            })),
             save_history: Arc::new(AtomicBool::new(save_history)),
             lua_script: Arc::new(Mutex::new(LuaScript::new(main_writer, dimensions))),
             logger: Arc::new(Mutex::new(Logger::default())),

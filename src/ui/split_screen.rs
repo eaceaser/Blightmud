@@ -10,6 +10,7 @@ use termion::color::{self, Bg, Fg};
 use termion::cursor;
 
 use super::UserInterface;
+use crate::model::PromptInput;
 
 const OUTPUT_START_LINE: u16 = 2;
 const SCROLL_LIVE_BUFFER_SIZE: u16 = 10;
@@ -255,32 +256,64 @@ impl UserInterface for SplitScreen {
         }
     }
 
-    fn print_prompt_input(&mut self, input: &str, pos: usize) {
-        // Sanity check
-        debug_assert!(pos <= input.len());
+    fn print_prompt_input(&mut self, input: &PromptInput) {
+        let PromptInput {
+            line,
+            cursor_pos,
+            selection,
+        } = input;
+        let mut line: &str = line;
+        let mut pos = *cursor_pos;
 
-        let mut input = input;
-        let mut pos = pos;
+        // Sanity check
+        debug_assert!(pos <= line.len());
+
         let width = self.width as usize;
-        while input.len() >= width && pos >= width {
-            let (_, last) = input.split_at(self.width as usize);
-            input = last;
+        while line.len() >= width && pos >= width {
+            let (_, last) = line.split_at(self.width as usize);
+            line = last;
             pos -= width;
         }
-        if input.len() >= width {
-            input = input.split_at(width).0;
+
+        if line.len() >= width {
+            line = line.split_at(width).0;
         }
         self.cursor_prompt_pos = pos as u16 + 1;
+
         write!(
             self.screen,
-            "{}{}{}{}{}{}{}{}{}",
+            "{}{}{}{}{}{}",
             termion::cursor::Save,
             termion::cursor::Goto(1, self.prompt_line),
             Fg(termion::color::Reset),
             Bg(termion::color::Reset),
             termion::style::Reset,
             termion::clear::CurrentLine,
-            input,
+        )
+        .unwrap();
+
+        match selection {
+            Some(s) => {
+                let (start, end) = s.cols;
+                write!(
+                    self.screen,
+                    "{}{}{}{}{}",
+                    &line[0..start],
+                    termion::style::Invert,
+                    &line[start..end],
+                    termion::style::NoInvert,
+                    &line[end..],
+                )
+                .unwrap();
+            }
+            None => {
+                write!(self.screen, "{}", line,).unwrap();
+            }
+        }
+
+        write!(
+            self.screen,
+            "{}{}",
             termion::cursor::Restore,
             self.goto_prompt(),
         )

@@ -1,9 +1,3 @@
-use crate::event::QuitMethod;
-use crate::model::{Line, Servers};
-use crate::{event::Event, tts::TTSController};
-use crate::{lua::LuaScript, lua::UiEvent, session::Session, SaveData};
-use log::debug;
-use rs_complete::CompletionTree;
 use std::collections::{HashSet, VecDeque};
 use std::thread;
 use std::{
@@ -11,7 +5,15 @@ use std::{
     path::PathBuf,
     sync::{mpsc::Sender, Arc, Mutex},
 };
+
+use log::debug;
+use rs_complete::CompletionTree;
 use termion::{event::Key, input::TermRead};
+
+use crate::event::QuitMethod;
+use crate::model::{Line, PromptInput, Selection, Servers};
+use crate::{event::Event, tts::TTSController};
+use crate::{lua::LuaScript, lua::UiEvent, session::Session, SaveData};
 
 const MAX_HISTORY: usize = 100;
 
@@ -53,12 +55,6 @@ impl CompletionStepData {
             None
         }
     }
-}
-
-struct Selection {
-    // [start, end)
-    rows: (usize, usize),
-    cols: (usize, usize),
 }
 
 pub struct CommandBuffer {
@@ -104,6 +100,12 @@ impl CommandBuffer {
         self.cursor_pos
     }
 
+    fn get_selection(&self) -> Option<Selection> {
+        self.selection.clone()
+    }
+
+    fn do_with_selection(&mut self, f: fn(Vec<char>) -> ()) {}
+
     fn submit(&mut self) -> String {
         // Insert history
         let cmd = if !self.buffer.is_empty() {
@@ -128,7 +130,7 @@ impl CommandBuffer {
         };
 
         self.current_index = self.history.len();
-        self.selection = Some(Selection{
+        self.selection = Some(Selection {
             cols: (0, self.buffer.len()),
             rows: (0, 0),
         });
@@ -218,7 +220,9 @@ impl CommandBuffer {
         if self.cursor_pos > 0 {
             match &self.selection {
                 Some(selection) => {
-                    self.buffer.drain(selection.cols.0..selection.cols.1).for_each(drop);
+                    self.buffer
+                        .drain(selection.cols.0..selection.cols.1)
+                        .for_each(drop);
                     self.cursor_pos = selection.cols.0;
                     self.selection = None;
                 }
@@ -237,7 +241,9 @@ impl CommandBuffer {
     fn push_key(&mut self, c: char) {
         match &self.selection {
             Some(selection) => {
-                self.buffer.drain(selection.cols.0..selection.cols.1).for_each(drop);
+                self.buffer
+                    .drain(selection.cols.0..selection.cols.1)
+                    .for_each(drop);
                 self.cursor_pos = selection.cols.0;
                 self.selection = None
             }
@@ -431,10 +437,11 @@ fn check_escape_bindings(
     }
     handle_script_ui_io(buffer, script, writer);
     writer
-        .send(Event::UserInputBuffer(
-            buffer.get_buffer(),
-            buffer.get_pos(),
-        ))
+        .send(Event::UserInputBuffer(PromptInput {
+            line: buffer.get_buffer(),
+            cursor_pos: buffer.get_pos(),
+            selection: buffer.get_selection(),
+        }))
         .unwrap();
 }
 
@@ -505,10 +512,11 @@ pub fn spawn_input_thread(session: Session) -> thread::JoinHandle<()> {
                             parse_key_event(key, &mut buffer, &writer, &mut tts_ctrl, save_history);
                         }
                         writer
-                            .send(Event::UserInputBuffer(
-                                buffer.get_buffer(),
-                                buffer.get_pos(),
-                            ))
+                            .send(Event::UserInputBuffer(PromptInput {
+                                line: buffer.get_buffer(),
+                                cursor_pos: buffer.get_pos(),
+                                selection: buffer.get_selection(),
+                            }))
                             .unwrap();
                     }
                     termion::event::Event::Mouse(event) => parse_mouse_event(event, &writer),
@@ -535,14 +543,14 @@ pub fn spawn_input_thread(session: Session) -> thread::JoinHandle<()> {
 
 #[cfg(test)]
 mod command_test {
-
     use std::sync::mpsc::{channel, Receiver, Sender};
     use std::sync::{Arc, Mutex};
 
-    use super::CommandBuffer;
     use crate::lua::LuaScript;
     use crate::tts::TTSController;
     use crate::Event;
+
+    use super::CommandBuffer;
 
     fn push_string(buffer: &mut CommandBuffer, msg: &str) {
         msg.chars().for_each(|c| buffer.push_key(c));
@@ -563,17 +571,26 @@ mod command_test {
         push_string(&mut buffer, "test test test");
         buffer.submit();
         assert_eq!(buffer.selection.is_some(), true);
-        assert_eq!(buffer.selection.as_ref().unwrap().cols, (0, buffer.buffer.len()));
-        assert_eq!(buffer.buffer.clone().into_iter().collect::<String>(), "test test test");
+        assert_eq!(
+            buffer.selection.as_ref().unwrap().cols,
+            (0, buffer.buffer.len())
+        );
+        assert_eq!(
+            buffer.buffer.clone().into_iter().collect::<String>(),
+            "test test test"
+        );
 
         push_string(&mut buffer, "/some command");
         assert_eq!(buffer.selection.is_none(), true);
         buffer.submit();
         assert_eq!(buffer.selection.is_some(), true);
-        assert_eq!(buffer.selection.as_ref().unwrap().cols, (0, buffer.buffer.len()));
+        assert_eq!(
+            buffer.selection.as_ref().unwrap().cols,
+            (0, buffer.buffer.len())
+        );
     }
 
-   #[test]
+    #[test]
     fn test_editing() {
         let mut buffer = get_command().0;
 

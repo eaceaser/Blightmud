@@ -1,5 +1,6 @@
-use log::error;
 use std::fmt;
+
+use log::error;
 use strip_ansi_escapes::strip as strip_ansi;
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
@@ -13,6 +14,20 @@ pub struct Flags {
     pub tts_gag: bool,
     pub tts_interrupt: bool,
     pub separate_receives: bool,
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct PromptInput {
+    pub line: String,
+    pub cursor_pos: usize,
+    pub selection: Option<Selection>,
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct Selection {
+    // [start, end)
+    pub rows: (usize, usize),
+    pub cols: (usize, usize),
 }
 
 #[derive(Debug, Clone)]
@@ -198,7 +213,6 @@ impl Line {
 
 #[cfg(test)]
 mod test_line {
-
     use super::Line;
 
     #[test]
@@ -285,6 +299,7 @@ mod test_line {
         assert_eq!(format!("{}", line), "test".to_string());
         let line = Line::from("\x1b[32mbatman\x1b[0m");
         assert_eq!(format!("{}", line), "\u{1b}[32mbatman\u{1b}[0m".to_string());
+        PrompoLine
     }
 
     #[test]
