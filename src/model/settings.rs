@@ -3,6 +3,7 @@ use anyhow::bail;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use mlua::ToLua;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -18,7 +19,8 @@ pub const CONFIRM_QUIT: &str = "confirm_quit";
 pub const SCROLL_SPLIT: &str = "scroll_split";
 pub const SCROLL_LOCK: &str = "scroll_lock";
 pub const READER_MODE: &str = "reader_mode";
-pub const SETTINGS: [&str; 8] = [
+pub const REPEAT_COMMAND: &str = "repeat_command";
+pub const SETTINGS: [&str; 9] = [
     LOGGING_ENABLED,
     TTS_ENABLED,
     MOUSE_ENABLED,
@@ -27,6 +29,7 @@ pub const SETTINGS: [&str; 8] = [
     SCROLL_SPLIT,
     SCROLL_LOCK,
     READER_MODE,
+    REPEAT_COMMAND,
 ];
 
 impl Settings {
@@ -59,6 +62,7 @@ impl Default for Settings {
         settings.insert(SCROLL_SPLIT.to_string(), true);
         settings.insert(SCROLL_LOCK.to_string(), true);
         settings.insert(READER_MODE.to_string(), false);
+        settings.insert(REPEAT_COMMAND.to_string(), false);
         Self { settings }
     }
 }

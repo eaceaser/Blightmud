@@ -11,7 +11,7 @@ use rs_complete::CompletionTree;
 use termion::{event::Key, input::TermRead};
 
 use crate::event::QuitMethod;
-use crate::model::{Line, PromptInput, Servers};
+use crate::model::{Line, PromptInput, Servers, Settings, REPEAT_COMMAND};
 use crate::{event::Event, tts::TTSController};
 use crate::{lua::LuaScript, lua::UiEvent, session::Session, SaveData};
 
@@ -69,10 +69,12 @@ pub struct CommandBuffer {
     completion: CompletionStepData,
     script: Arc<Mutex<LuaScript>>,
     tts_ctrl: Arc<Mutex<TTSController>>,
+    repeat_command: bool,
 }
 
 impl CommandBuffer {
     pub fn new(tts_ctrl: Arc<Mutex<TTSController>>, script: Arc<Mutex<LuaScript>>) -> Self {
+        let settings = Settings::load();
         let mut completion = CompletionTree::with_inclusions(&['/', '_']);
         completion.set_min_word_len(3);
 
@@ -86,6 +88,7 @@ impl CommandBuffer {
             completion_tree: completion,
             completion: CompletionStepData::default(),
             selection: None,
+            repeat_command: settings.get(REPEAT_COMMAND).unwrap_or(false),
             script,
             tts_ctrl,
         }
@@ -127,10 +130,13 @@ impl CommandBuffer {
             String::new()
         };
 
-        self.current_index = self.history.len();
-        self.selection = Some((0, self.buffer.len()));
-        // self.buffer.clear();
-        // self.cursor_pos = 0;
+        if self.repeat_command {
+            self.current_index = self.history.len();
+            self.selection = Some((0, self.buffer.len()));
+        } else {
+            self.buffer.clear();
+            self.cursor_pos = 0;
+        }
 
         cmd
     }
