@@ -11,7 +11,7 @@ use rs_complete::CompletionTree;
 use termion::{event::Key, input::TermRead};
 
 use crate::event::QuitMethod;
-use crate::model::{Line, PromptInput, Selection, Servers};
+use crate::model::{Line, PromptInput, Servers};
 use crate::{event::Event, tts::TTSController};
 use crate::{lua::LuaScript, lua::UiEvent, session::Session, SaveData};
 
@@ -64,7 +64,7 @@ pub struct CommandBuffer {
     history: History,
     current_index: usize,
     cursor_pos: usize,
-    selection: Option<Selection>,
+    selection: Option<(usize, usize)>,
     completion_tree: CompletionTree,
     completion: CompletionStepData,
     script: Arc<Mutex<LuaScript>>,
@@ -100,11 +100,9 @@ impl CommandBuffer {
         self.cursor_pos
     }
 
-    fn get_selection(&self) -> Option<Selection> {
+    fn get_selection(&self) -> Option<(usize, usize)> {
         self.selection.clone()
     }
-
-    fn do_with_selection(&mut self, f: fn(Vec<char>) -> ()) {}
 
     fn submit(&mut self) -> String {
         // Insert history
@@ -130,10 +128,7 @@ impl CommandBuffer {
         };
 
         self.current_index = self.history.len();
-        self.selection = Some(Selection {
-            cols: (0, self.buffer.len()),
-            rows: (0, 0),
-        });
+        self.selection = Some((0, self.buffer.len()));
         // self.buffer.clear();
         // self.cursor_pos = 0;
 
@@ -144,20 +139,26 @@ impl CommandBuffer {
         if self.cursor_pos > 0 {
             self.cursor_pos -= 1;
         }
+
+        self.selection = None;
     }
 
     fn step_right(&mut self) {
         if self.cursor_pos < self.buffer.len() {
             self.cursor_pos += 1;
         }
+
+        self.selection = None;
     }
 
     fn move_to_start(&mut self) {
         self.cursor_pos = 0;
+        self.selection = None;
     }
 
     fn move_to_end(&mut self) {
         self.cursor_pos = self.buffer.len();
+        self.selection = None;
     }
 
     fn step_word_right(&mut self) {
@@ -166,7 +167,8 @@ impl CommandBuffer {
             origin + pos
         } else {
             self.buffer.len()
-        }
+        };
+        self.selection = None;
     }
 
     fn step_word_left(&mut self) {
@@ -176,7 +178,8 @@ impl CommandBuffer {
             pos + 1
         } else {
             0
-        }
+        };
+        self.selection = None;
     }
 
     fn delete_to_end(&mut self) {
@@ -218,12 +221,11 @@ impl CommandBuffer {
 
     fn remove(&mut self) {
         if self.cursor_pos > 0 {
-            match &self.selection {
-                Some(selection) => {
+            match self.selection {
+                Some((start, end)) => {
                     self.buffer
-                        .drain(selection.cols.0..selection.cols.1)
-                        .for_each(drop);
-                    self.cursor_pos = selection.cols.0;
+                        .drain(start..end);
+                    self.cursor_pos = start;
                     self.selection = None;
                 }
                 None => {
@@ -239,12 +241,11 @@ impl CommandBuffer {
     }
 
     fn push_key(&mut self, c: char) {
-        match &self.selection {
-            Some(selection) => {
+        match self.selection {
+            Some((start, end)) => {
                 self.buffer
-                    .drain(selection.cols.0..selection.cols.1)
-                    .for_each(drop);
-                self.cursor_pos = selection.cols.0;
+                    .drain(start..end);
+                self.cursor_pos = start;
                 self.selection = None
             }
             None => {}

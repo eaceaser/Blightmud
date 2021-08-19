@@ -292,9 +292,8 @@ impl UserInterface for SplitScreen {
         )
         .unwrap();
 
-        match selection {
-            Some(s) => {
-                let (start, end) = s.cols;
+        match *selection {
+            Some((start, end)) => {
                 write!(
                     self.screen,
                     "{}{}{}{}{}",

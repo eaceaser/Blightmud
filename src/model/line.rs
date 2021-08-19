@@ -20,14 +20,7 @@ pub struct Flags {
 pub struct PromptInput {
     pub line: String,
     pub cursor_pos: usize,
-    pub selection: Option<Selection>,
-}
-
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
-pub struct Selection {
-    // [start, end)
-    pub rows: (usize, usize),
-    pub cols: (usize, usize),
+    pub selection: Option<(usize, usize)>,
 }
 
 #[derive(Debug, Clone)]
